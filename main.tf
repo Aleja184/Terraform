@@ -1,93 +1,49 @@
-####### provider #######
-provider "aws" {
-  region = "us-east-2"
-}
+####### tfstate #######
 
-
-#######  resource ####### 
-resource "aws_instance" "nginx-server" {
-  ami           = "ami-0b8b44ec9a8f90422"
-  instance_type = "t3.micro"
-  user_data = <<-EOF
-              #!/bin/bash
-              sudo yum install -y nginx
-              sudo systemctl enable nginx
-              sudo systemctl start nginx
-              EOF
-
-  key_name = aws_key_pair.nginx-server-ssh.key_name
-  
-  vpc_security_group_ids = [
-	aws_security_group.nginx-server-sg.id
-  ]
-
-    tags = {
-    Name        = "nginx-server"
-    Environment = "test"
-    Owner       = "torogrisalesa@gmail.com"
-    Team        = "DevOps"
-    Project     = "webinar"
+terraform {
+  backend "s3" {
+    bucket         = "webinar-terraform-caosbinario-123asd123ad123asd"
+    key            = "webinar-terraform/terraform.tfstate"
+    region         = "us-east-1"
   }
 }
 
-####### ssh ####### 
-# ssh-keygen -t rsa -b 2048 -f "nginx-server.key"
+####### modulos #######
+module "nginx_server_dev" {
+    source = "./module"
 
-resource "aws_key_pair" "nginx-server-ssh" {
-  key_name   = "nginx-server-ssh"
-  public_key = file("nginx-server.key.pub")
-
-  
-  tags = {
-    Name        = "nginx-server-ssh"
-    Environment = "test"
-    Owner       = "torogrisalesa@gmail.com"
-    Team        = "DevOps"
-    Project     = "webinar"
-  }
+    ami_id           = "ami-0440d3b780d96b29d"
+    instance_type    = "t3.small"
+    server_name      = "nginx-server-dev"
+    environment      = "dev"
 }
 
-####### SG ####### 
-resource "aws_security_group" "nginx-server-sg" {
-  name        = "nginx-server-sg"
-  description = "Security group allowing SSH and HTTP access"
+module "nginx_server_qa" {
+    source = "./module"
 
-  ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-  ##Regla de entrada
-  ingress {
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-  ##Regla de salida
-  egress {
-    from_port        = 0
-    to_port          = 0
-    protocol         = "-1"
-    cidr_blocks      = ["0.0.0.0/0"]
-  }
-  tags = {
-    Name        = "nginx-server-sg"
-    Environment = "test"
-    Owner       = "torogrisalesa@gmail.com"
-    Team        = "DevOps"
-    Project     = "webinar"
-  }
+    ami_id           = "ami-0440d3b780d96b29d"
+    instance_type    = "t3.small"
+    server_name      = "nginx-server-qa"
+    environment      = "qa"
 }
 
 #######  output ####### 
-output "server_public_ip" {
+output "nginx_dev_ip" {
   description = "Dirección IP pública de la instancia EC2"
-  value       = aws_instance.nginx-server.public_ip
+  value       = module.nginx_server_dev.server_public_ip
 }
 
-output "server_public_dns" {
+output "nginx_dev_dns" {
   description = "DNS público de la instancia EC2"
-  value       = aws_instance.nginx-server.public_dns
+  value       = module.nginx_server_dev.server_public_dns
+}
+
+output "nginx_qa_ip" {
+  description = "Dirección IP pública de la instancia EC2"
+  value       = module.nginx_server_qa.server_public_ip
+}
+
+output "nginx_qa_dns" {
+  description = "DNS público de la instancia EC2"
+  value       = module.nginx_server_qa.server_public_dns
 }
